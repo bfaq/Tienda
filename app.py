@@ -90,7 +90,7 @@ def admin_login():
         username = request.form['username']
         password = request.form['password']
 
-        user = Usuario.query.filter_by(nom_usuario=username, pasword=password).first()
+        user = Usuario.query.filter_by(nom_usuario=username, password=password).first()
 
         if user:
             session['admin_logged_in'] = True
