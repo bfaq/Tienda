@@ -1,11 +1,12 @@
 from flask import Flask, request, render_template, redirect, url_for, session
+from markupsafe import Markup
 from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 import os
 from flask_admin import AdminIndexView
 from flask import redirect, url_for, session, request
-
+from flask_admin.menu import MenuLink
 # Crear la app Flask
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY','Rr_123456')
@@ -41,6 +42,10 @@ class SecureModelView(ModelView):
     def inaccessible_callback(self, name, **kwargs):
         return redirect(url_for('admin_login'))
     
+    def render (self, template, **kwargs):
+        kwargs['logout_button'] = Markup('<a class="btn btn-danger" href="/admin/logout">Cerrar sesión</a>')
+        return super().render(template, **kwargs)
+    
 # Modelos
 class Categoria(db.Model):
     __tablename__ = 'categorias'
@@ -69,6 +74,7 @@ admin = Admin(app, name='Panel Admin', template_mode='bootstrap3', index_view=My
 admin.add_view(ModelView(Usuario, db.session))
 admin.add_view(ModelView(Categoria, db.session))
 admin.add_view(ModelView(Producto, db.session))
+admin.add_link(MenuLink(name='Cerrar sesion', category='', url='/admin/logout'))
 
 @app.route("/")
 def home():
