@@ -4,9 +4,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_admin import Admin
 from flask_admin.contrib.sqla import ModelView
 import os
+from flask_admin.form import ImageUploadField
 from flask_admin import AdminIndexView
 from flask import redirect, url_for, session, request
 from flask_admin.menu import MenuLink
+from wtforms.fields import SelectField
+
 # Crear la app Flask
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY','Rr_123456')
@@ -19,6 +22,7 @@ if not database_url:
 # Conexión con PostgreSQL
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join('static','uploads')
 
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'sslmode': 'require'}
@@ -46,6 +50,42 @@ class SecureModelView(ModelView):
         kwargs['logout_button'] = Markup('<a class="btn btn-danger" href="/admin/logout">Cerrar sesión</a>')
         return super().render(template, **kwargs)
     
+class ProductoAdmin(ModelView):
+    form_extra_fields = {
+        'imagen': ImageUploadField('Imagen del producto',
+                                   base_path=os.path.join(os.getcwd(), 'static', 'uploads'),
+                                   relative_path='uploads/',
+                                   url_relative_path='static/uploads/'
+                                   )
+    }
+    form_overrides = {
+        'id_categoria': SelectField
+    }
+    form_columns = ['nombre', 'descripcion', 'imagen', 'precio','id_categoria']
+    # Sobrescribimos el tipo de campo
+    form_overrides = {
+        'id_categoria': SelectField
+    }
+    # Configuramos el comportamiento del SelectField
+    form_args = {
+        'id_categoria': {
+        'coerce': int,
+        'label': 'Categoría'
+        }
+    }
+    # Llenamos las opciones para el campo select (crear)
+    def create_form(self, obj=None):
+        form = super().create_form(obj)
+        form.id_categoria.choices = [(c.id_categoria, c.nom_categoria) for c
+        in Categoria.query.all()]
+        return form
+    # Llenamos las opciones para el campo select (editar)
+    def edit_form(self, obj=None):
+        form = super().edit_form(obj)
+        form.id_categoria.choices = [(c.id_categoria, c.nom_categoria) for c
+        in Categoria.query.all()]
+        return form
+
 # Modelos
 class Categoria(db.Model):
     __tablename__ = 'categorias'
@@ -60,6 +100,7 @@ class Producto(db.Model):
     imagen = db.Column(db.String(200))
     precio = db.Column(db.Float, nullable=False)
     id_categoria = db.Column(db.Integer, db.ForeignKey('categorias.id_categoria'), nullable=False)
+    categoria = db.relationship('Categoria', backref='productos')
 
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
@@ -73,7 +114,7 @@ class Usuario(db.Model):
 admin = Admin(app, name='Panel Admin', template_mode='bootstrap3', index_view=MyAdminIndexView())
 admin.add_view(ModelView(Usuario, db.session))
 admin.add_view(ModelView(Categoria, db.session))
-admin.add_view(ModelView(Producto, db.session))
+admin.add_view(ProductoAdmin(Producto, db.session))
 admin.add_link(MenuLink(name='Cerrar sesion', category='', url='/admin/logout'))
 
 @app.route("/")
@@ -83,6 +124,14 @@ def home():
 @app.route("/inicio/")
 def inicio():
     return render_template("index.html")
+
+@app.route('/productos')
+def productos():
+    return render_template('plantilla1.html')
+
+@app.route('/servicios')
+def servicios():
+    return render_template('plantilla2.html')
 
 @app.route('/ventas')
 def ventas():
